@@ -423,7 +423,13 @@ func (a *HorizontalController) computeReplicasForMetric(ctx context.Context, hpa
 			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get %s resource metric value: %v", spec.Resource.Name, err)
 		}
 	case autoscalingv2.ContainerResourceMetricSourceType:
-		replicaCountProposal, timestampProposal, metricNameProposal, condition, err = a.computeStatusForContainerResourceMetric(ctx, specReplicas, spec, hpa, selector, status)
+		// This is a temporary check. Once the feature is GA, we can remove it. Usually if the feature is disabled,
+		// the API server will strip the field from the object. However, if the HPA object was created before the
+		// feature was disabled (i.e. downgrading), the field will remain.
+		if !feature.DefaultFeatureGate.Enabled(features.HPAContainerMetrics) {
+			return 0, "", time.Time{}, autoscalingv2.HorizontalPodAutoscalerCondition{}, fmt.Errorf("container resource metrics are not supported")
+		}
+        replicaCountProposal, timestampProposal, metricNameProposal, condition, err = a.computeStatusForContainerResourceMetric(ctx, specReplicas, spec, hpa, selector, status)
 		if err != nil {
 			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get %s container metric value: %v", spec.ContainerResource.Container, err)
 		}
